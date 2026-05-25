@@ -1,0 +1,151 @@
+variables:
+  - group: GoHijau-TestEnv       # Variable group with GITHUB_PAT and deploy secrets
+  - name: JIRA_TICKET_KEY
+    value: ''                    # Overridden at queue time by the Jira webhook
+  - name: JIRA_LABELS
+    value: ''                    # Overridden at queue time by the Jira webhook
+
+resources:
+  repositories:
+    - repository: dashboard
+      type: github
+      name: LoopSphere/gohijau_dashboard   # replace with your exact GitHub repo name
+      endpoint: liknesh98                # the existing service connection
+    - repository: mobile
+      type: github
+      name: LoopSphere/gohijau_reactjs      # replace with your exact GitHub repo name
+      endpoint: liknesh98
+
+stages:
+
+  # ?????????????????????????????????????????????????????????????
+  # Stage 1: Detect the correct branch per project using GitHub API
+  # ?????????????????????????????????????????????????????????????
+  - stage: Detect_Branches
+    displayName: 'Detect Feature Branches'
+    jobs:
+      - job: BranchDetection
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - script: |
+              TICKET_KEY="$(JIRA_TICKET_KEY)"
+              LABELS="$(JIRA_LABELS)"
+              GH_TOKEN="$(GITHUB_PAT)"
+
+              # Searches GitHub for a branch containing the Jira ticket key.
+              # Falls back to 'main' if no match is found.
+              find_branch() {
+                local REPO=$1
+                local BRANCHES
+                BRANCHES=$(curl -s -H "Authorization: token $GH_TOKEN" \
+                  "https://api.github.com/repos/liknesh98/$REPO/branches?per_page=100" \
+                  | jq -r '.[].name')
+                local MATCH
+                MATCH=$(echo "$BRANCHES" | grep -i "$TICKET_KEY" | head -1)
+                echo "${MATCH:-main}"
+              }
+
+              BACKEND_BRANCH="main"
+              DASHBOARD_BRANCH="main"
+              MOBILE_BRANCH="main"
+
+              if echo "$LABELS" | grep -qi "backend"; then
+                BACKEND_BRANCH=$(find_branch "GoHijauBackend")
+              fi
+              if echo "$LABELS" | grep -qi "dashboard"; then
+                DASHBOARD_BRANCH=$(find_branch "GoHijauDashboard")
+              fi
+              if echo "$LABELS" | grep -qi "mobile"; then
+                MOBILE_BRANCH=$(find_branch "GoHijauMobile")
+              fi
+
+              echo "Backend  ? $BACKEND_BRANCH"
+              echo "Dashboard ? $DASHBOARD_BRANCH"
+              echo "Mobile   ? $MOBILE_BRANCH"
+
+              echo "##vso[task.setvariable variable=backendBranch;isOutput=true]$BACKEND_BRANCH"
+              echo "##vso[task.setvariable variable=dashboardBranch;isOutput=true]$DASHBOARD_BRANCH"
+              echo "##vso[task.setvariable variable=mobileBranch;isOutput=true]$MOBILE_BRANCH"
+            displayName: 'Detect branches from Jira labels'
+            name: detect
+            env:
+              GITHUB_PAT: $(GITHUB_PAT)
+
+  # ?????????????????????????????????????????????
+  # Stage 2: Build Backend (.NET 8)
+  # ?????????????????????????????????????????????
+  - stage: Build_Backend
+    displayName: 'Build Backend (.NET Core)'
+    dependsOn: Detect_Branches
+    variables:
+      branch: $[ stageDependencies.Detect_Branches.BranchDetection.outputs['detect.backendBranch'] ]
+    jobs:
+      - job: BuildBackend
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: self                  # This pipeline lives in GoHijauBackend repo
+            ref: $(branch)
+          - task: UseDotNet@2
+            inputs:
+              version: '8.x'
+          - script: dotnet restore
+            displayName: 'Restore NuGet packages'
+          - script: dotnet build --configuration Release --no-restore
+            displayName: 'Build solution'
+          - script: dotnet test --configuration Release --no-build
+            displayName: 'Run tests'
+          - script: dotnet publish -c Release -o $(Build.ArtifactStagingDirectory)/backend
+            displayName: 'Publish'
+          # TODO: add deploy step to test environment here (SSH, FTP, or Azure App Service)
+
+  # ?????????????????????????????????????????????
+  # Stage 3: Build Dashboard (Vue JS)
+  # ?????????????????????????????????????????????
+  - stage: Build_Dashboard
+    displayName: 'Build Dashboard (Vue JS)'
+    dependsOn: Detect_Branches
+    variables:
+      branch: $[ stageDependencies.Detect_Branches.BranchDetection.outputs['detect.dashboardBranch'] ]
+    jobs:
+      - job: BuildDashboard
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: dashboard             # references the resource declared above
+            ref: $(branch)
+          - task: NodeTool@0
+            inputs:
+              versionSpec: '20.x'
+            displayName: 'Install Node 20'
+          - script: npm ci
+            displayName: 'Install dependencies'
+          - script: npm run build
+            displayName: 'Build Vue app'
+          # TODO: add deploy step to test environment here
+
+  # ?????????????????????????????????????????????
+  # Stage 4: Build Mobile (React Native)
+  # ?????????????????????????????????????????????
+  - stage: Build_Mobile
+    displayName: 'Build Mobile (React Native)'
+    dependsOn: Detect_Branches
+    variables:
+      branch: $[ stageDependencies.Detect_Branches.BranchDetection.outputs['detect.mobileBranch'] ]
+    jobs:
+      - job: BuildMobile
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: mobile                # references the resource declared above
+            ref: $(branch)
+          - task: NodeTool@0
+            inputs:
+              versionSpec: '20.x'
+            displayName: 'Install Node 20'
+          - script: npm ci
+            displayName: 'Install dependencies'
+          - script: npx expo export         # adjust if not using Expo
+            displayName: 'Bundle React Native app'
+          # TODO: add deploy step to test environment here
