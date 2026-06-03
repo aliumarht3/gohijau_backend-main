@@ -1,4 +1,5 @@
-﻿using GoHijauBackend.Domain.Entities;
+﻿using GoHijauBackend.Application.Dto; // Added for Diagnostics
+using GoHijauBackend.Domain.Entities;
 using Microsoft.AspNetCore.SignalR;
 
 namespace GoHijauBackend.Application.Hubs
@@ -7,15 +8,19 @@ namespace GoHijauBackend.Application.Hubs
     {
         private static readonly Dictionary<string, string> MachineConnections = new();
 
-        public override Task OnConnectedAsync()
+        public override async Task OnConnectedAsync()
         {
             var machineId = Context.GetHttpContext()?.Request.Query["machineId"];
+            
             if (!string.IsNullOrEmpty(machineId))
             {
-                MachineConnections[machineId!] = Context.ConnectionId;
-                Console.WriteLine($"Machine connected: {machineId}");
+                // FIXED: Actually store the connection so SendCommand works!
+                MachineConnections[machineId] = Context.ConnectionId;
+                
+                await Groups.AddToGroupAsync(Context.ConnectionId, machineId);
             }
-            return base.OnConnectedAsync();
+            
+            await base.OnConnectedAsync();
         }
 
         public override Task OnDisconnectedAsync(Exception? exception)
@@ -28,6 +33,7 @@ namespace GoHijauBackend.Application.Hubs
             }
             return base.OnDisconnectedAsync(exception);
         }
+
         private static string MachineGroup(string machineId) => $"machine:{machineId}";
 
         // ----------- Subscriptions for apps (collectors/admin) -----------
@@ -47,7 +53,6 @@ namespace GoHijauBackend.Application.Hubs
         // Called by the machine to send status updates
         public async Task SendStatus(string machineId, string status)
         {
-
             try
             {
                 // Optionally, broadcast the status via SignalR
@@ -68,6 +73,7 @@ namespace GoHijauBackend.Application.Hubs
                 await Clients.Client(connectionId).SendAsync("ReceiveCommand", command);
             }
         }
+
         public async Task UpdateVolume(MachineUCOTracking payload)
         {
             if (payload == null || string.IsNullOrWhiteSpace(payload.MachineId))
@@ -87,6 +93,16 @@ namespace GoHijauBackend.Application.Hubs
 
             // If you still want global feed for dashboards, uncomment:
             // await Clients.All.SendAsync("ReceiveMachineVolumeUpdate", outbound);
+        }
+
+        // ==========================================
+        // NEW DIAGNOSTICS LOGIC
+        // ==========================================
+        
+        public async Task SendDiagnosticLog(DiagnosticLogDto log)
+        {
+            // Broadcast the diagnostic step to all connected UI dashboards
+            await Clients.All.SendAsync("ReceiveDiagnosticLog", log);
         }
     }
 }

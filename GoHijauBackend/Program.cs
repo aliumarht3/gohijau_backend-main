@@ -52,6 +52,8 @@ builder.Services.AddScoped<ICollectorUCOReminder, CollectorUCOReminderService>()
 builder.Services.AddScoped<IMachineHistoryService, MachineHistoryService>();
 builder.Services.AddScoped<IMachineOwnerProfitDebtLogService, MachineOwnerProfitDebtLogService>();
 builder.Services.AddScoped<ICollectionPostProcessService, CollectionPostProcessService>();
+builder.Services.AddSingleton<LiveMachineCache>();
+builder.Services.AddScoped<IPhysicalCheckReportRepository, MongoPhysicalCheckReportRepository>();
 builder.Services.AddSingleton<ICollectionPostProcessQueue, CollectionPostProcessQueue>();
 builder.Services.AddHostedService<CollectionPostProcessWorker>();
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
