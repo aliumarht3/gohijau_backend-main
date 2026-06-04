@@ -10,7 +10,7 @@ namespace GoHijauBackend.Application.Hubs
 
         public override async Task OnConnectedAsync()
         {
-            var machineId = Context.GetHttpContext()?.Request.Query["machineId"];
+            var machineId = Context.GetHttpContext()?.Request.Query["machineId"].ToString();
             
             if (!string.IsNullOrEmpty(machineId))
             {
