@@ -52,19 +52,31 @@ namespace GoHijauBackend.Controllers
             return Ok(new { message = "Log received and broadcasted." });
         }
 
-        [HttpPost("{machineId}/trigger-online")]
-        public async Task<IActionResult> TriggerOnline(string machineId)
+    [HttpPost("{machineId}/trigger-online")]
+    public async Task<IActionResult> TriggerOnline(string machineId)
+    {
+        // Override the database mismatch
+        if (machineId == "PERLIS-01") 
         {
-            await _hubContext.Clients.All.SendAsync("ReceiveCommand", "TriggerOnline", machineId);
-            return Ok(new { message = "Startup diagnostic command sent to machine." });
+            machineId = "GO-000001";
         }
 
-        [HttpPost("{machineId}/trigger-physical/{component}")]
-        public async Task<IActionResult> TriggerPhysical(string machineId, string component)
+        await _hubContext.Clients.All.SendAsync("RunOnlineDiagnostics", machineId);
+        return Ok(new { message = "Startup diagnostic command sent to machine." });
+    }
+
+    [HttpPost("{machineId}/trigger-physical/{component}")]
+    public async Task<IActionResult> TriggerPhysical(string machineId, string component)
+    {
+        // Override the database mismatch
+        if (machineId == "PERLIS-01") 
         {
-            await _hubContext.Clients.All.SendAsync("ReceiveCommand", "TriggerPhysical", component, machineId);
-            return Ok(new { message = $"Test command for {component} sent to machine." });
+            machineId = "GO-000001";
         }
+
+        await _hubContext.Clients.All.SendAsync("RunPhysicalDiagnostics", machineId, component);
+        return Ok(new { message = $"Test command for {component} sent to machine." });
+    }
 
         [HttpPost("physical-checks")]
         public async Task<IActionResult> SubmitPhysicalCheck([FromBody] PhysicalCheckReport report)
