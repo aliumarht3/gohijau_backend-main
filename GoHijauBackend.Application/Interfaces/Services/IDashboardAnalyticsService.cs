@@ -4,6 +4,9 @@ namespace GoHijauBackend.Application.Interfaces.Services
 {
     public interface IDashboardAnalyticsService
     {
-        public Task<DashboardAnalyticsDTO> GetDashboardAnalytics(string userId);
+        Task<DashboardAnalyticsDTO> GetDashboardAnalytics(string userId);
+        
+        // ADD THIS:
+        Task<SipocAnalyticsDTO> GetSipocAnalytics(string userId, DateTime? startDate, DateTime? endDate);
     }
 }

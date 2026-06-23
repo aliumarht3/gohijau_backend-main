@@ -1,4 +1,6 @@
-﻿using GoHijauBackend.Application.Dto;
+﻿using System;
+using System.Threading.Tasks;
+using GoHijauBackend.Application.Dto;
 using GoHijauBackend.Application.Helpers;
 using GoHijauBackend.Application.Interfaces.Persistence;
 using GoHijauBackend.Application.Interfaces.Services;
@@ -35,6 +37,31 @@ namespace GoHijauBackend.Application.Services
 
             return dashboardAnalyticsDTO;
 
+        }
+
+        // --- NEW SIPOC METHOD ---
+        public async Task<SipocAnalyticsDTO> GetSipocAnalytics(string userId, DateTime? startDate, DateTime? endDate)
+        {
+            // Fetch active machines using your existing repository method
+            var totalActiveMachines = await _dashboardAnalyticsRepository.GetOwnerTotalActiveMachines(userId);
+
+            // TODO: Create new methods in your repositories that accept startDate and endDate
+            // Example:
+            // var totalInput = await _transactionRepository.GetTotalOilPouredByDateRange(userId, startDate, endDate);
+            
+            var sipocDTO = new SipocAnalyticsDTO
+            {
+                // Placeholder 0s until the date-filtering repository methods are created
+                TotalInputWeight = 0, 
+                TotalOutputWeight = 0,
+                TotalContamination = 0,
+                TotalDowntimeHours = 0,
+                ActiveUsers = 0,
+                ProcessedTransactions = 0,
+                ActiveMachines = totalActiveMachines 
+            };
+
+            return sipocDTO;
         }
     }
 }

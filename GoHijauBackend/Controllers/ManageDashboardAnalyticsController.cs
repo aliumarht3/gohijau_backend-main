@@ -25,5 +25,16 @@ namespace GoHijauBackend.Api.Controllers
             return Ok(analytics);
         }
 
+        [HttpGet("sipoc-info")]
+        public async Task<IActionResult> GetSipocAnalytics([FromQuery] DateTime? startDate, [FromQuery] DateTime? endDate)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
+            var analytics = await _dashboardAnalyticsService.GetSipocAnalytics(userId, startDate, endDate);
+            return Ok(analytics);
+        }
+
     }
 }
