@@ -1,0 +1,31 @@
+name: Deploy to VPS on PROD merge
+
+on:
+  push:
+    branches:
+      - PROD
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Set up SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
+    - name: Deploy to VPS
+      run: |
+        ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
+          cd /var/www/gohijau/gohijau_backend   # or ${{ secrets.VPS_APP_DIR }}
+          git pull origin PROD
+          ~/.dotnet/dotnet publish -c Release -o ./publish
+          # systemctl restart kestrel-yourapp.service  or restart nginx, etc.
+          sudo systemctl restart gohijau
+        EOF

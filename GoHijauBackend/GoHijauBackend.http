@@ -1,0 +1,8 @@
+@GoHijauBackend_HostAddress = http://localhost:5152
+
+GET {{GoHijauBackend_HostAddress}}/api/weather/
+Accept: application/json
+###
+GET {{GoHijauBackend_HostAddress}}/api/test/
+Accept: application/json
+###
