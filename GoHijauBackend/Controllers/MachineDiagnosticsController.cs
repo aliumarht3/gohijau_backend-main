@@ -83,5 +83,62 @@ namespace GoHijauBackend.Controllers
 
         [HttpGet("errors")]
         public IActionResult GetErrors() => Ok(new List<object>());
+
+        [HttpPost("diagnostics/cross-check")]
+        public async Task<IActionResult> LogCrossCheck([FromBody] CrossCheckDiagnosticsDto request)
+        {
+            if (string.IsNullOrEmpty(request.MachineId))
+            {
+                return BadRequest(new { success = false, message = "Machine ID is required." });
+            }
+
+            // Map the DTO to your Domain Entity
+            var logEntry = new MachineCrossCheckLog
+            {
+                MachineId = request.MachineId,
+                Timestamp = request.Timestamp,
+                
+                UltrasonicCm = request.LoadCellDiagnostics?.UltrasonicCm,
+                ActualWeightKg = request.LoadCellDiagnostics?.ActualWeightKg,
+                ExpectedWeightKg = request.LoadCellDiagnostics?.ExpectedWeightKg,
+                VarianceKg = request.LoadCellDiagnostics?.VarianceKg,
+
+                ReservoirDeltaCm = request.PumpDiagnostics?.ReservoirDeltaCm,
+                PumpMovedLiquid = request.PumpDiagnostics?.PumpMovedLiquid,
+                WeighingTankEmptied = request.PumpDiagnostics?.WeighingTankEmptied,
+                FinalSmallTankCm = request.PumpDiagnostics?.FinalSmallTankCm
+            };
+
+            // TODO: Inject your repository/service here and save 'logEntry' to MongoDB
+            // await _diagnosticsService.SaveCrossCheckLogAsync(logEntry);
+
+            return Ok(new { success = true, message = "Cross-check diagnostics logged successfully." });
+        }
+
+        [HttpGet("diagnostics/cross-check/{machineId}")]
+        public async Task<IActionResult> GetCrossCheckLogs(string machineId)
+        {
+            // Initialize an empty list to prevent compilation errors
+            var logs = new List<MachineCrossCheckLog>();
+            
+            // TODO: Fetch from your MongoRepository, ordered by descending timestamp
+            // logs = await _diagnosticsService.GetCrossCheckLogsAsync(machineId);
+            
+            // Placeholder return format
+            return Ok(new { success = true, data = logs }); 
+        }
+
+        [HttpGet("diagnostics/cross-check")]
+        public async Task<IActionResult> GetAllCrossCheckLogs()
+        {
+            // Initialize an empty list to prevent compilation errors
+            var logs = new List<MachineCrossCheckLog>();
+            
+            // TODO: Fetch ALL logs from your MongoRepository, ordered by descending timestamp
+            // logs = await _diagnosticsService.GetAllCrossCheckLogsAsync();
+            
+            return Ok(new { success = true, data = logs }); 
+        }
+
     }
 }
